@@ -279,13 +279,3 @@ class ImageProcessor():
             plt.savefig(filename + ".png", bbox_inches='tight', pad_inches=0)
         else:
             plt.show()
-
-if __name__ == "__main__":
-    processor = ImageProcessor()
-    processor.load("pumpkin.png")
-
-    processor.pixelate_images(((50, 260), (70, 300)), block_size=10)
-
-    processor.save("pumpkin_masked")
-
-
