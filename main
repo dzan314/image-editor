@@ -1,0 +1,291 @@
+import numpy as np
+from PIL import Image
+import pickle
+import matplotlib.pyplot as plt
+
+class ImageProcessor():
+    # Your methods here
+
+    def __init__(self):
+        self.image_array = None
+        self.color_map = None
+        self.RGB_mode = None
+
+    def is_RGB_mode(self):
+        """
+        getter returns the RGB_mode
+        """
+        return self.RGB_mode
+
+    def get_color_map(self):
+        """
+        getter returns the color_map
+        """
+        return self.color_map
+
+    def get_array(self):
+        """
+        getter returns the image_array
+        """
+        return self.image_array
+
+    def shape(self):
+        """
+        returns the height x width of the array
+        """
+        if self.image_array is None:
+            raise ValueError("No image loaded")
+        # slices to get h, w
+        return self.image_array.shape[:2]
+
+    def load(self, filepath):
+        """
+        loads png files (rgb mode on) or pkl files (colormap mode on)
+        """
+        if filepath.endswith(".png"):
+            img = Image.open(filepath).convert("RGB")
+            self.image_array = np.array(img)
+            self.color_map = None
+            self.RGB_mode = True
+        elif filepath.endswith(".pkl"):
+            with open(filepath, "rb") as f:
+                data = pickle.load(f)
+                self.image_array = data[0]
+                self.color_map = data[1]
+                self.RGB_mode = False
+        else:
+            raise ValueError("Unsupported file format")
+
+    def helper_save(self, filepath):
+        """
+        chooses correct extensions based on mode
+        """
+        if self.RGB_mode:
+            ext = ".png"
+        else:
+            ext = ".pkl"
+
+        if not filepath.endswith(ext):
+            return filepath + ext
+        else:
+            return filepath
+
+    def save(self, filepath):
+        """
+        saves images in a correct format
+        """
+        if self.image_array is None:
+            raise ValueError("No image loaded")
+
+        opt_filepath = self.helper_save(filepath)
+
+        if self.RGB_mode:
+            img = Image.fromarray(self.image_array.astype("uint8"))
+            img.save(opt_filepath)
+        else:
+            data = (self.image_array, self.color_map)
+
+            with open(opt_filepath, "wb") as f:
+                pickle.dump(data, f)
+
+    def change_image_format(self, to_RGB, bins=2):
+        """
+        changes the image format with helper functions - from rgb to colormap and vice versa
+        """
+        if self.image_array is None:
+            raise ValueError("No image loaded")
+
+        if to_RGB == self.RGB_mode:
+            return
+
+        if to_RGB:
+            self.colormap_to_rgb()
+        else:
+            self.rgb_to_colormap(bins)
+
+    def colormap_to_rgb(self):
+        """
+        converts a colormap to RGB
+        """
+        h, w = self.shape()
+        rgb_image = np.zeros((h, w, 3), dtype=np.uint8)
+
+        # id is dict key, rgb is normalized 3-tuple value
+        for id, rgb_norm in self.color_map.items():
+            # boolean mask of all pixels equal to current id
+            mask = self.image_array == id
+            # convert (0, 1) float to (0, 255) uint8 values, assign where mask is True
+            rgb_image[mask] = (rgb_norm * 255).astype(np.uint8)
+
+        self.image_array = rgb_image
+        # change modes
+        self.RGB_mode = True
+        self.color_map = None
+
+    def colormap_dtype(self, bins):
+        """
+        helper function: chooses correct type based on number of bins
+        """
+
+        num_cubes = bins ** 3
+
+        # choose smallest int type for indexing colors
+        if num_cubes <= 256:
+            return np.uint8
+        elif num_cubes <= 65536:
+            return np.uint16
+        else:
+            return np.uint32
+
+    def pixels_to_cubes(self, norm_image, bins):
+        """
+        helper function: converts pixels to cubes using a number system with radix=bins
+        """
+
+        bin_indices = (norm_image * bins).astype(int)
+
+        # for r/g/b = 1 (255) it puts the value to the last bin
+        bin_indices[bin_indices >= bins] = bins - 1
+
+        # 3d color adress to 1d int label
+        r_cube = bin_indices[:, :, 0] * (bins ** 2)
+        g_cube = bin_indices[:, :, 1] * bins
+        b_cube = bin_indices[:, :, 2]
+
+        return r_cube + g_cube + b_cube
+
+    def colormap_from_cubes(self, cube_ids, norm_image, bins, dtype):
+        """
+        helper function: converts cubes to colormap, returns the colormap and colormap_image
+        """
+        colormap_image = np.zeros(cube_ids.shape, dtype=dtype)
+        colormap = {}
+        new_id = 0
+
+        for id in range(bins ** 3):
+            # boolean mask of all cube ids equal to current id
+            mask = cube_ids == id
+            if mask.sum() > 0:
+                # where mask is true, set pixels in scale (0, 255)
+                pixels = norm_image[mask] * 255.0
+                mean_color = pixels.mean(axis=0) / 255.0
+                # assign the current pixel the mean color
+                colormap[new_id] = mean_color
+                colormap_image[mask] = new_id
+                new_id += 1
+
+        return colormap_image, colormap
+
+    def rgb_to_colormap(self, bins):
+        """
+        using the helper functions it converts an rgb image to a colormap
+        """
+        normalized = self.image_array.astype(np.float64) / 255.0
+        dtype = self.colormap_dtype(bins)
+        cube_ids = self.pixels_to_cubes(normalized, bins)
+        colormap_image, colormap = self.colormap_from_cubes(cube_ids, normalized, bins, dtype)
+        self.image_array = colormap_image
+        self.color_map = colormap
+        self.RGB_mode = False
+
+    def rotate_colors(self):
+        """
+        rotates the colors in rgb image or colormap
+        """
+        if self.image_array is None:
+            raise ValueError("No image loaded")
+        # rotate colors in rgb mode
+        if self.RGB_mode:
+            self.image_array = self.image_array[..., [1, 2, 0]]
+        else:
+            # rotate colors in colormap (rotating them inside dictionary values)
+            if len(self.color_map) > 0:
+                keys = sorted(self.color_map.keys())
+                old_colors = [self.color_map[key] for key in keys]
+                new_map = {}
+                for i in range(len(keys)):
+                    new_map[keys[i]] = old_colors[(i - 1) % len(old_colors)]
+                self.color_map = new_map
+
+    def blur_RGB_images(self, size=3):
+        """
+        blurs the RGB image only
+        not possible for colormap
+        """
+        if self.image_array is None:
+            raise ValueError("No image loaded")
+
+        h, w, c = self.image_array.shape
+        # make the size odd
+        mask_size = (size // 2) * 2 + 1
+        # pixel has to be in the middle, radius also odd
+        radius = mask_size // 2
+        img_float = self.image_array.astype(np.float64)
+        new_array = np.zeros_like(img_float)
+
+        # loop through rows
+        for y in range(h):
+            y_start = max(0, y - radius)
+            y_end = min(h, y + radius + 1)
+            for x in range(w):
+                x_start = max(0, x - radius)
+                x_end = min(w, x + radius + 1)
+
+                # establish (slice) the blur area
+                area = img_float[y_start:y_end, x_start:x_end, :]
+                # take the avarage of the colors
+                new_array[y, x, :] = np.mean(area, axis=(0, 1))
+
+        self.image_array = new_array.astype(np.uint8)
+
+    def pixelate_images(self, area, block_size=10):
+        """
+        pixelates the image based on area and block size given
+        """
+        if self.image_array is None:
+            raise ValueError("No image loaded")
+
+        ((xmin, xmax), (ymin, ymax)) = area
+        h, w = self.shape()
+
+        # go through x, y axis and define block to pixelate based on arg block_size
+        for y in range(max(0, ymin), min(h, ymax), block_size):
+            for x in range(max(0, xmin), min(w, xmax), block_size):
+                y_end = min(y + block_size, ymax, h)
+                x_end = min(x + block_size, xmax, w)
+                block = self.image_array[y:y_end, x:x_end]
+
+                if self.RGB_mode:
+                    common_val = np.mean(block, axis=(0, 1)).astype(np.uint8)
+                else:
+                    count = np.bincount(block.flatten())
+                    common_val = np.argmax(count)
+
+                self.image_array[y:y_end, x:x_end] = common_val
+
+    def show(self, filename=None):
+        """
+         This shows the images or saves the image if a filename is given.
+        This works for both image formats.
+        """
+        if self.is_RGB_mode():
+            img = self.get_array()
+        else:
+            img = np.vectorize(self.get_color_map().get, signature='()->(n)')(self.get_array())
+
+        plt.imshow(img, interpolation='none')
+        plt.axis('off')
+        if filename is not None:
+            plt.savefig(filename + ".png", bbox_inches='tight', pad_inches=0)
+        else:
+            plt.show()
+
+if __name__ == "__main__":
+    processor = ImageProcessor()
+    processor.load("pumpkin.png")
+
+    processor.pixelate_images(((50, 260), (70, 300)), block_size=10)
+
+    processor.save("pumpkin_masked")
+
+
