@@ -1,0 +1,40 @@
+import math
+from image import ImageProcessor
+
+processor = ImageProcessor()
+
+# ====== EYES PIXELATION =======
+
+processor.load("brad.png")
+
+size = processor.image_array.shape[:2]
+y_low = size[0] * 0.38
+y_high = size[0] * 0.48
+x_low = size[1] * 0.28
+x_high = size[1] * 0.70
+#--
+y_low = math.floor(y_low)
+y_high = math.floor(y_high)
+x_low = math.floor(x_low)
+x_high = math.floor(x_high)
+
+
+processor.pixelate_images(((x_low, x_high), (y_low, y_high)), block_size=20)
+
+processor.save("brad_pixelated.png")
+
+#======= RGB ROTATION =============
+
+processor.load("brad.png")
+
+processor.rotate_colors()
+
+processor.save("brad_colors.png")
+
+#======== IMAGE BLUR =============
+
+processor.load("brad.png")
+
+processor.blur_RGB_images()
+
+processor.save("brad_blurred.png")
