@@ -11,6 +11,7 @@ Custom ImageProcessor class for handling RGB (.png) and colormap (.pkl) files. I
 - pixelate: pixelates a given area by taking mean of nearest (defined by the second argument) pixels
 - blur: blurs the whole image
 - rotate RGB colors: changes color of every pixel by rotating RGB values to the left (r, g, b -> g, b, r)
+- a few helper methods for more complex methods
 
 #TODO: extend the features (and descriptions)
   
