@@ -13,5 +13,10 @@ Custom ImageProcessor class for handling RGB (.png) and colormap (.pkl) files. I
 - rotate RGB colors: changes color of every pixel by rotating RGB values to the left (r, g, b -> g, b, r)
 - a few helper methods for more complex methods
 
+## Usage
+[ ... ]
+
+example files ->> ...
+
 #TODO: extend the features (and descriptions)
   
