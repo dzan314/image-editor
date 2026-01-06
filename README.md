@@ -19,4 +19,3 @@ Custom ImageProcessor class for handling RGB (.png) and colormap (.pkl) files. I
 example files ->> ...
 
 #TODO: extend the features (and descriptions)
-  
