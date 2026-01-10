@@ -14,8 +14,8 @@ Custom ImageProcessor class for handling RGB (.png) and colormap (.pkl) files. I
 - a few helper methods for more complex methods
 
 ## Usage
-[ ... ]
 
-example files ->> ...
+Download the ``` image_class ``` file, and import it as a module, as in the file ``` example_use ```.
+Follow standard Python file-handling guidelines.
 
 #TODO: extend the features (and descriptions)
